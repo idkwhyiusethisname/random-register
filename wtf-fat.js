@@ -39,8 +39,11 @@ async function registerUser(usname, pspass) {
   };
 
   return fetch(endpoint, requestOptions)
-    .then(response => response.text())
-    .then(data => ({ usname, pspass, data }));
+    .then(response => ({
+      status: response.status,
+      usname,
+      pspass,
+    }));
 }
 
 async function registerUsersInBatch() {
@@ -56,21 +59,63 @@ async function registerUsersInBatch() {
   return Promise.all(batchPromises);
 }
 
+async function performRegistrationAndLogout() {
+  try {
+    const responses = await registerUsersInBatch();
+    responses.forEach(response => {
+      console.log('Random usname:', response.usname);
+      console.log('Random pspass:', response.pspass);
+      console.log('Status code:', response.status);
+
+      // If registration was successful (status code 200), perform logout
+      if (response.status === 200) {
+        const logoutOptions = {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'include',
+          headers: {
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'accept-language': 'en-US,en;q=0.9',
+            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'document',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'same-origin',
+            'sec-fetch-user': '?1',
+            'upgrade-insecure-requests': '1'
+          },
+          referrer: 'https://mayashop.xyz/?page=information',
+          referrerPolicy: 'strict-origin-when-cross-origin',
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'include',
+        };
+
+        fetch('https://mayashop.xyz/?page=logout', logoutOptions)
+          .then(logoutResponse => {
+            console.log('Logout Response:', logoutResponse);
+          })
+          .catch(error => {
+            console.error('Logout Error:', error);
+          });
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Run the registration and logout threads
 async function runThreads() {
   const threadPromises = [];
 
   for (let i = 0; i < numThreads; i++) {
-    threadPromises.push(registerUsersInBatch());
+    threadPromises.push(performRegistrationAndLogout());
   }
 
-  const allThreads = await Promise.all(threadPromises);
-
-  allThreads.flat().forEach(response => {
-    console.log('Random usname:', response.usname);
-    console.log('Random pspass:', response.pspass);
-    console.log('Response:', response.data);
-  });
+  await Promise.all(threadPromises);
 }
 
-// Run the registration process in threads
+// Start the registration and logout threads
 runThreads();
